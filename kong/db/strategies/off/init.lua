@@ -5,6 +5,7 @@ local kong = kong
 local fmt = string.format
 local tostring = tostring
 local tonumber = tonumber
+local get_phase = ngx.get_phase
 local encode_base64 = ngx.encode_base64
 local decode_base64 = ngx.decode_base64
 
@@ -158,7 +159,7 @@ end
 
 
 local function select_by_key(self, key)
-  if not kong.cache then
+  if not kong.cache or get_phase() == "init_worker" then
     return nil
   end
 
@@ -202,6 +203,8 @@ function off.new(connector, schema, errors)
     end
   end
 
+  local create_unsupported = unsupported("create")
+
   local self = {
     connector = connector, -- instance of kong.db.strategies.off.connector
     schema = schema,
@@ -209,8 +212,13 @@ function off.new(connector, schema, errors)
     page = page,
     select = select,
     select_by_field = select_by_field,
+    insert = function(_, entity, options)
+      if options and options.declarative then
+        return entity
+      end
 
-    insert = unsupported("create"),
+      return create_unsupported()
+    end,
     update = unsupported("update"),
     upsert = unsupported("create or update"),
     delete = unsupported("remove"),

@@ -300,7 +300,13 @@ function declarative.load_into_cache(entities, send_events)
       local cache_key = dao:cache_key(id)
       item = remove_nulls(item)
       local ok, err = kong.cache:get(cache_key, nil, function()
-        return item
+        local err
+        item, err = dao:insert(item, {
+          declarative = true,
+          no_broadcast_crud_event = true,
+        })
+
+        return item, err
       end)
       if not ok then
         return nil, err
